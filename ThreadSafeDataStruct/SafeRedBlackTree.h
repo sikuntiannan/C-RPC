@@ -19,6 +19,7 @@ class RedBlackTree
       private:
         std::shared_ptr< node > m_left;
         std::shared_ptr< node > m_right;
+        std::shared_ptr< node > m_parent;
         value                   m_value;
         key                     m_key;
     };
@@ -61,24 +62,26 @@ class RedBlackTree
             右孩子永远指向最大值
             父节点永远指向头结点
      */
-    node               m_root;
-    std::atomic_size_t m_size;
+    std::unique_ptr< node > m_root;
+    std::atomic_size_t      m_size;
 };
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node::node()
 {
-    m_left  = nullptr;
-    m_right = nullptr;
+    m_left   = nullptr;
+    m_right  = nullptr;
+    m_parent = nullptr;
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node::node( const node& val )
 {
-    m_key   = val.m_key;
-    m_value = val.m_value;
-    m_left  = val.m_left;
-    m_right = val.m_right;
+    m_key    = val.m_key;
+    m_value  = val.m_value;
+    m_left   = val.m_left;
+    m_right  = val.m_right;
+    m_parent = val.m_parent;
 }
 
 template < typename key, typename value >
@@ -86,6 +89,7 @@ inline RedBlackTree< key, value >::node::node( node&& val )
 {
     std::swap( m_left, val.m_left );
     std::swap( m_right, val.m_right );
+    std::swap( m_parent, val.m_parent );
     std::swap( m_value, val.m_value );
     std::swap( m_key, val.m_key );
 }
@@ -93,10 +97,11 @@ inline RedBlackTree< key, value >::node::node( node&& val )
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node& RedBlackTree< key, value >::node::operator=( const node& val )
 {
-    m_key   = val.m_key;
-    m_value = val.m_value;
-    m_left  = val.m_left;
-    m_right = val.m_right;
+    m_key    = val.m_key;
+    m_value  = val.m_value;
+    m_left   = val.m_left;
+    m_right  = val.m_right;
+    m_parent = val.m_parent;
     return *this;
 }
 
@@ -105,6 +110,7 @@ inline RedBlackTree< key, value >::node& RedBlackTree< key, value >::node::opera
 {
     std::swap( m_left, val.m_left );
     std::swap( m_right, val.m_right );
+    std::swap( m_parent, val.m_parent );
     std::swap( m_value, val.m_value );
     std::swap( m_key, val.m_key );
     return *this;
@@ -124,11 +130,14 @@ inline auto RedBlackTree< key, value >::node::operator<=>( const node&& val ) co
 template < typename key, typename value >
 inline RedBlackTree< key, value >::RedBlackTree()
 {
+    m_size = 0;
+    m_root = std::make_unique< node >();
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::~RedBlackTree()
 {
+    clear();
 }
 
 template < typename key, typename value >
