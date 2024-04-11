@@ -3,8 +3,9 @@
 #include <tuple>
 
 template < typename key, typename value >
-class RedBlackTree
+class RedBlackTree  //: public std::enable_shared_from_this< RedBlackTree >
 {
+  public:
     class node
     {
       public:
@@ -17,23 +18,24 @@ class RedBlackTree
         auto operator<=>( const node&& ) const;
 
       private:
-        std::shared_ptr< node > m_left;
-        std::shared_ptr< node > m_right;
-        std::shared_ptr< node > m_parent;
-        value                   m_value;
-        key                     m_key;
+        std::weak_ptr< node >   m_Left;
+        std::shared_ptr< node > m_Right;
+        std::shared_ptr< node > m_Parent;
+        value                   m_Value;
+        key                     m_Key;
     };
 
     class iterator
     {
       public:
         iterator();
+        iterator( const std::shared_ptr< node >&& );
         iterator( const iterator& );
         iterator( iterator&& );
         iterator& operator=( const iterator& );
         iterator& operator=( iterator&& );
         ~iterator();
-        iterator&                 operator++( int );
+        iterator                  operator++( int );
         iterator&                 operator++();
         bool                      operator==( const iterator&& ) const noexcept;
         bool                      operator!=( const iterator&& ) const noexcept;
@@ -51,8 +53,8 @@ class RedBlackTree
     iterator find( const key&& key );
     iterator begin();
     iterator end();
-    void     eraser( const iterator& );
     void     clear();
+    void     eraser( const iterator& iter );
     size_t   size();
 
   private:
@@ -62,35 +64,47 @@ class RedBlackTree
             右孩子永远指向最大值
             父节点永远指向头结点
      */
-    std::unique_ptr< node > m_root;
-    std::atomic_size_t      m_size;
+    class MemberData
+    {
+      private:
+        std::atomic_size_t m_Size;       //节点数
+        node               m_Root;       //根节点
+        std::atomic_size_t m_UseNumber;  //有多少线程正在访问
+        std::atomic_bool   m_IsUsable;   //当前对象是否可用
+
+      public:
+        MemberDat( /* args */ );
+        ~MemberDat();
+    };
+
+    std::unique_ptr< MemberData > m_Data;
 };
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node::node()
 {
-    m_left   = nullptr;
-    m_right  = nullptr;
-    m_parent = nullptr;
+    m_Left   = nullptr;
+    m_Right  = nullptr;
+    m_Parent = nullptr;
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node::node( const node& val )
 {
-    m_key    = val.m_key;
-    m_value  = val.m_value;
-    m_left   = val.m_left;
-    m_right  = val.m_right;
-    m_parent = val.m_parent;
+    m_Key    = val.m_key;
+    m_Value  = val.m_Value;
+    m_Left   = val.m_Left;
+    m_Right  = val.m_Right;
+    m_Parent = val.m_Parent;
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node::node( node&& val )
 {
-    std::swap( m_left, val.m_left );
-    std::swap( m_right, val.m_right );
-    std::swap( m_parent, val.m_parent );
-    std::swap( m_value, val.m_value );
+    std::swap( m_Left, val.m_Left );
+    std::swap( m_Right, val.m_Right );
+    std::swap( m_Parent, val.m_Parent );
+    std::swap( m_Value, val.m_Value );
     std::swap( m_key, val.m_key );
 }
 
@@ -98,20 +112,20 @@ template < typename key, typename value >
 inline RedBlackTree< key, value >::node& RedBlackTree< key, value >::node::operator=( const node& val )
 {
     m_key    = val.m_key;
-    m_value  = val.m_value;
-    m_left   = val.m_left;
-    m_right  = val.m_right;
-    m_parent = val.m_parent;
+    m_Value  = val.m_Value;
+    m_Left   = val.m_Left;
+    m_Right  = val.m_Right;
+    m_Parent = val.m_Parent;
     return *this;
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::node& RedBlackTree< key, value >::node::operator=( node&& val )
 {
-    std::swap( m_left, val.m_left );
-    std::swap( m_right, val.m_right );
-    std::swap( m_parent, val.m_parent );
-    std::swap( m_value, val.m_value );
+    std::swap( m_Left, val.m_Left );
+    std::swap( m_Right, val.m_Right );
+    std::swap( m_Parent, val.m_Parent );
+    std::swap( m_Value, val.m_Value );
     std::swap( m_key, val.m_key );
     return *this;
 }
@@ -130,14 +144,12 @@ inline auto RedBlackTree< key, value >::node::operator<=>( const node&& val ) co
 template < typename key, typename value >
 inline RedBlackTree< key, value >::RedBlackTree()
 {
-    m_size = 0;
-    m_root = std::make_unique< node >();
+    m_Data = std::make_unique< MemberData >();
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::~RedBlackTree()
 {
-    clear();
 }
 
 template < typename key, typename value >
@@ -159,29 +171,30 @@ inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::find( co
 template < typename key, typename value >
 inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::begin()
 {
-    return iterator();
+    return iterator( m_root.m_Left );
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::end()
 {
-    return iterator();
-}
-
-template < typename key, typename value >
-inline void RedBlackTree< key, value >::eraser( const iterator& )
-{
+    return iterator( m_root.m_Right );
 }
 
 template < typename key, typename value >
 inline void RedBlackTree< key, value >::clear()
+{
+    m_Data.swap( std::make_unique< MemberData >() );
+}
+
+template < typename key, typename value >
+inline void RedBlackTree< key, value >::eraser( const iterator& iter )
 {
 }
 
 template < typename key, typename value >
 inline size_t RedBlackTree< key, value >::size()
 {
-    return size_t();
+    return m_data->GetSize();
 }
 
 template < typename key, typename value >
@@ -215,30 +228,32 @@ inline RedBlackTree< key, value >::iterator::~iterator()
 }
 
 template < typename key, typename value >
-inline RedBlackTree< key, value >::iterator& RedBlackTree< key, value >::iterator::operator++( int )
+inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::iterator::operator++( int )
 {
+    iterator result( *this );
+    ++( *this );
+    return result;
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::iterator& RedBlackTree< key, value >::iterator::operator++()
 {
-    // TODO: 在此处插入 return 语句
 }
 
 template < typename key, typename value >
-inline bool RedBlackTree< key, value >::iterator::operator==( const iterator&& ) const noexcept
+inline bool RedBlackTree< key, value >::iterator::operator==( const iterator&& val ) const noexcept
 {
-    return false;
+    return m_NowNode == val.m_NowNode;
 }
 
 template < typename key, typename value >
-inline bool RedBlackTree< key, value >::iterator::operator!=( const iterator&& ) const noexcept
+inline bool RedBlackTree< key, value >::iterator::operator!=( const iterator&& val ) const noexcept
 {
-    return false;
+    return m_NowNode != val.m_NowNode;
 }
 
 template < typename key, typename value >
 inline std::pair< key&, value& > RedBlackTree< key, value >::iterator::operator*()
 {
-    return std::pair< key&, value& >();
+    return std::pair< key&, value& >( m_NowNode->m_key, m_NowNode->m_Value );
 }
