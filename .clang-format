@@ -59,7 +59,7 @@ BraceWrapping:
   # else 之前
   BeforeElse:  true
   # 缩进大括号
-  IndentBraces:  true
+  IndentBraces:  false
 # 在二元运算符前换行: None(在操作符后换行), NonAssignment(在非赋值的操作符前换行), All(在操作符前换行)
 BreakBeforeBinaryOperators:  NonAssignment
 # 在大括号前换行: Attach(始终将大括号附加到周围的上下文), Linux(除函数、命名空间和类定义, 与 Attach 类似), 
