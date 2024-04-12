@@ -23,12 +23,42 @@
 
 - 节点
   ``` c++
+    template < typename key, typename value >
+    class node
+    {
         std::weak_ptr< node >   m_Left;
         std::shared_ptr< node > m_Right;
         std::shared_ptr< node > m_Parent;
         value                   m_Value;
         key                     m_Key;
-
+    }
 - 迭代器
+  ``` c++
+    template < typename key, typename value >
+    class iterator
+    {
+        std::shared_ptr< node > m_NowNode;
+    }
 - 成员变量结构体
+  ``` c++
+    template < typename key, typename value >
+    class node;
+    template < typename key, typename value >
+    struct MemberData
+    {
+        std::atomic_size_t m_Size;       //节点数
+        node               m_Root;       //根节点
+        std::atomic_size_t m_UseNumber;  //有多少线程正在访问
+        std::atomic_bool   m_IsUsable;   //当前对象是否可用
+    }
 - 红黑树
+  ``` c++
+    template < typename key, typename value >
+    class node;
+    template < typename key, typename value >
+    struct MemberData
+    template < typename key, typename value >
+    class RedBlackTree  
+    {
+        std::unique_ptr< MemberData > m_Data;
+    }
