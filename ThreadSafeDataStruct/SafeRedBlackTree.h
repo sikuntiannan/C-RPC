@@ -18,9 +18,9 @@ class RedBlackTree  //: public std::enable_shared_from_this< RedBlackTree >
         auto operator<=>( const node&& ) const;
 
       private:
-        std::weak_ptr< node >   m_Left;
+        std::shared_ptr< node > m_Left;
         std::shared_ptr< node > m_Right;
-        std::shared_ptr< node > m_Parent;
+        std::weak_ptr< node >   m_Parent;
         value                   m_Value;
         key                     m_Key;
     };
@@ -42,7 +42,7 @@ class RedBlackTree  //: public std::enable_shared_from_this< RedBlackTree >
         std::pair< key&, value& > operator*();
 
       private:
-        std::shared_ptr< node > m_NowNode;
+        std::weak_ptr< node > m_NowNode;
     };
 
   public:
@@ -64,16 +64,17 @@ class RedBlackTree  //: public std::enable_shared_from_this< RedBlackTree >
             右孩子永远指向最大值
             父节点永远指向头结点
      */
-    class MemberData
+    struct MemberData
     {
-      private:
         std::atomic_size_t m_Size;       //节点数
         node               m_Root;       //根节点
         std::atomic_size_t m_UseNumber;  //有多少线程正在访问
         std::atomic_bool   m_IsUsable;   //当前对象是否可用
-
-      public:
         MemberDat( /* args */ );
+        MemberData( const MemberData& );
+        MemberData( MemberData&& );
+        MemberData& operator=( const MemberData& );
+        MemberData& operator=( MemberData&& );
         ~MemberDat();
     };
 
@@ -171,13 +172,13 @@ inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::find( co
 template < typename key, typename value >
 inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::begin()
 {
-    return iterator( m_root.m_Left );
+    return iterator( m_Data->m_Root.m_Left );
 }
 
 template < typename key, typename value >
 inline RedBlackTree< key, value >::iterator RedBlackTree< key, value >::end()
 {
-    return iterator( m_root.m_Right );
+    return iterator( m_Data->m_Root.m_Right );
 }
 
 template < typename key, typename value >

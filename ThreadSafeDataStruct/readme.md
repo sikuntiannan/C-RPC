@@ -26,9 +26,9 @@
     template < typename key, typename value >
     class node
     {
-        std::weak_ptr< node >   m_Left;
+        std::shared_ptr< node >   m_Left;
         std::shared_ptr< node > m_Right;
-        std::shared_ptr< node > m_Parent;
+        std::weak_ptr< node > m_Parent;
         value                   m_Value;
         key                     m_Key;
     }
@@ -37,7 +37,7 @@
     template < typename key, typename value >
     class iterator
     {
-        std::shared_ptr< node > m_NowNode;
+        std::weak_ptr< node > m_NowNode;
     }
 - 成员变量结构体
   ``` c++
@@ -54,11 +54,23 @@
 - 红黑树
   ``` c++
     template < typename key, typename value >
-    class node;
-    template < typename key, typename value >
     struct MemberData
     template < typename key, typename value >
     class RedBlackTree  
     {
         std::unique_ptr< MemberData > m_Data;
     }
+
+树结构：
+m_Root.m_Left指向最左节点
+m_Root.m_Right指向最右节点
+m_Root.m_Parent指向树的根节点
+迭代器：
+影响迭代器的操作有：
+插入导致树调整
+    并不影响继续访问下一个或者上一个节点，但树调整这个行为是阻塞的。
+置空
+    当前节点消失，无效操作。
+删除导致当前节点消失
+
+迭代器存储weak_ptr<node>,可以避免节点无法释放，并发时总是可以立刻得知当前节点失效。当前迭代器无效有两种情况
